@@ -8,12 +8,32 @@
                 <% if(item.start_with?("-")) %>
                     <% item.slice!(0) %>
                     <td style="text-align:left" bgcolor="FFDDDD"> - </td>
-                    <td style="text-align:left" bgcolor="FFDDDD"><%= item %></td>
+                    <td style="text-align:left" bgcolor="FFDDDD">
+                        <% parse = item.split(" ").map! { |e| e.chomp } %>
+                           <% for parse_item in parse %>
+                           <% if(parse_item.start_with?("-")) %>
+                                <% parse_item.slice!(0) %>
+                                <span style="background:#FFAAAA"><%= parse_item%></span>
+                           <% else %>
+                                <span style="background:#FFDDDD"><%= parse_item%></span>
+                           <%end%>
+                           <% end %>
+                    </td>
                 <% else %>
                      <% if(item.start_with?("+")) %>
                         <% item.slice!(0) %>
                         <td style="text-align:left" bgcolor="DDFFDD"> + </td>
-                        <td style="text-align:left" bgcolor="DDFFDD"><%= item %></td>
+                        <td style="text-align:left" bgcolor="DDFFDD">
+                        <% parse = item.split(" ").map! { |e| e.chomp } %>
+                           <% for parse_item in parse %>
+                           <% if(parse_item.start_with?("+")) %>
+                                <% parse_item.slice!(0) %>
+                                <span style="background:#AAFFAA"><%= parse_item%></span>
+                           <% else %>
+                                <span style="background:#DDFFDD"><%= parse_item%></span>
+                           <%end%>
+                           <% end %>
+                    </td>
                      <% else %>
                         <td style="text-align:left" bgcolor="F8F8FF"></td>
                         <td style="text-align:left" bgcolor="F8F8FF"><%= item %></td>

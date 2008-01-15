@@ -78,62 +78,80 @@ class PageController < ApplicationController
 
   def diff
     @page = PageAtRevision.find_by_path(@path)
-    #if (params[:first_revision].to_i<params[:second_revision].to_i)
-    #  first = params[:second_revision]
-    #  second = params[:first_revision]
-    #end
+       if (params[:first_revision].to_i < params[:second_revision].to_i)
+         first = params[:second_revision]
+         second = params[:first_revision]
+       else
+         second = params[:second_revision]
+         first = params[:first_revision]
+       end
 
-    second = params[:second_revision]
-    first = params[:first_revision]
-
-    @page.revision_date = @page.page_parts_revisions[first.to_i].created_at
-    @first_revision = @page.get_page_parts_by_date(first)
-        old_revision = ""
-        for part in @first_revision
-          unless part.was_deleted
-            old_revision<< part.body << "\n"
-          end
-        end
-    @page = PageAtRevision.find_by_path(@path)
-    @page.revision_date = @page.page_parts_revisions[second.to_i].created_at
-    @second_revision = @page.get_page_parts_by_date(second)
-        new_revision = ""
-        for part in @second_revision
-          unless part.was_deleted
-            new_revision<< part.body << "\n"
-          end
-        end
-    compare(old_revision, new_revision)
-    @printer = @output.split(/\n/).map! { |e| e.chomp }
-    @printer.delete_at(0)
-    render :action => 'diff'
+       @page.revision_date = @page.page_parts_revisions[first.to_i].created_at
+       @first_revision = @page.get_page_parts_by_date(first)
+           old_revision = ""
+           for part in @first_revision
+             unless part.was_deleted
+               old_revision<< part.body << "\n"
+             end
+           end
+       @page.revision_date = @page.page_parts_revisions[second.to_i].created_at
+       @second_revision = @page.get_page_parts_by_date(second)
+           new_revision = ""
+           for part in @second_revision
+             unless part.was_deleted
+               new_revision<< part.body << "\n"
+             end
+           end
+       compare(old_revision, new_revision)
+       @printer = @output.split(/\n/).map! { |e| e.chomp }
+       render :action => 'diff'
   end
      
  def compare old,new
-    data_old = old.split(/\n/).map! { |e| e.chomp }
-    data_new = new.split(/\n/).map! { |e| e.chomp }
-        @output = ""
-        context_lines = 3
-        format = :unified
-	diffs = Diff::LCS.diff(data_old, data_new)
-    return @output if diffs.empty?
-	    oldhunk = hunk = nil
-	    file_length_difference = 0
-	diffs.each do |piece|
-	    begin
-	      hunk = Diff::LCS::Hunk.new(data_old, data_new, piece, context_lines, file_length_difference)
-	      file_length_difference = hunk.file_length_difference
-	      next unless oldhunk
-              if (context_lines > 0) and hunk.overlaps?(oldhunk)
-                 hunk.unshift(oldhunk)
-              else
-                output << oldhunk.diff(format)
+   @output = ""
+     data_old = old.split(/\n/).map! { |e| e.chomp }
+     data_new = new.split(/\n/).map! { |e| e.chomp }
+     diffs = Diff::LCS.sdiff(data_old, data_new)
+     puts "*****************************************************************************************"
+     p diffs
+
+    for diff in diffs
+       data_old_parse = ""
+       data_new_parse = ""
+        mark = ""
+        temp = ""
+      if(diff.action == '=')
+        @output << diff.old_element << "\n"
+      else begin
+           if(diff.old_element == nil)
+             @output << "+" << diff.new_element << "\n"
+           else if(diff.new_element == nil)
+             @output << "-" << diff.old_element << "\n"
+           else begin
+              data_old_parse = diff.old_element.split(" ").map! { |e| e.chomp }
+              data_new_parse = diff.new_element.split(" ").map! { |e| e.chomp }
+              diffs_parsed = Diff::LCS.sdiff(data_old_parse, data_new_parse)
+                 for parsed_diff in diffs_parsed
+                   case parsed_diff.action
+                         when '=' then temp << parsed_diff.old_element << " "
+                         when '-' then mark << "-"; temp << "-" << parsed_diff.old_element << " "
+                         when '+' then mark << "+"; temp << "+" << parsed_diff.new_element << " "
+                   end
+                 end
+                 if(mark.start_with?("-"))
+                  @output << "-"
+                 end
+                 if(mark.start_with?("+"))
+                  @output << "+"
+                  end
+               @output << temp << "\n"
+               end
               end
-              ensure
-              oldhunk = hunk
-              end
-	end
-	@output << oldhunk.diff(format)  
+           end
+        end
+      end
+     p @output
+    end
   end
    
   def pagesib
