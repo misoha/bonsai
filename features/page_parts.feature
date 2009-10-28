@@ -35,5 +35,25 @@ Feature: Wiki layouting and many page parts
     Then I should see "Page successfully updated."
     When I follow "Edit"
     Then I should not see "testpage"
-        
+
+
+Scenario: User create a page part and rename it
+    When I go to the main page
+    And I login as "johno"
+    And I create "/" page
+    And I follow "Edit"
+    And I fill in "new_page_part_name" with "testpage"
+    And I fill in "new_page_part_text" with "This is a header"
+    And I press "Add new page part"
+    Then I should see "Page part successfully added."
+    And I follow "View"
+    Then I should see "Some title"
+    When I follow "Edit"
+    And I fill in "page_part_name_testpage" with "testpage2"
+    And I press "Save"
+    Then I should see "Page successfully updated."
+    When I follow "Edit"
+    Then I should see "testpage2"
+
+
     

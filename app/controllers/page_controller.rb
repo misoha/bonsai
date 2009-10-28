@@ -274,10 +274,12 @@ class PageController < ApplicationController
     @page.save
     params[:parts].each do |part_name, body|
       page_part = PagePart.find_by_name_and_page_id(part_name, @page.id)
+      s = "page_part_name_" + part_name
       current_revision = page_part.current_page_part_revision
-
+      params[s]
+      
       revision = nil
-      if(page_part.current_page_part_revision.body != body ||
+      if(params[s] != part_name || page_part.current_page_part_revision.body != body ||
             current_revision.was_deleted && (params[:is_deleted].blank? || params[:is_deleted][part_name].blank?) ||
             !current_revision.was_deleted && !params[:is_deleted].blank? && !params[:is_deleted][part_name].blank?)
 
@@ -296,6 +298,7 @@ class PageController < ApplicationController
         end
         revision.save!
         page_part.current_page_part_revision = revision
+        page_part.name = params[s]
         page_part.save!
       end
     end
@@ -304,7 +307,8 @@ class PageController < ApplicationController
   end
 
   def new_part
-    page_part = PagePart.create(:name => params[:new_page_part_name], :page => @page, :current_page_part_revision_id => 0)
+   page_part = @page.page_parts.find_by_name(params[:new_page_part_name])
+   page_part = PagePart.create(:name => params[:new_page_part_name], :page => @page, :current_page_part_revision_id => 0) if page_part.nil?
     unless page_part.valid?
       error_message = ""
       page_part.errors.each_full { |msg| error_message << msg }
