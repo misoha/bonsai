@@ -245,6 +245,7 @@ class PageController < ApplicationController
 
   def rss_history
     @recent_revisions = PagePartRevision.find(:all, :include => [:page_part, :user], :conditions => ["page_parts.page_id = ?", @page.id], :limit => 10, :order => "created_at DESC")
+    @revision_count = @page.page_parts_revisions.count
     render :action => :rss_history, :layout => false
   end
 
