@@ -1,4 +1,6 @@
 class PageController < ApplicationController
+   require 'diff/lcs/hunk'
+
   def handle
     @path = params[:path]
 
@@ -74,24 +76,70 @@ class PageController < ApplicationController
   end
 
   def diff
-    @first_revision = @page.page_parts_revisions[params[:first_revision].to_i]
-    @second_revision = @page.page_parts_revisions[params[:second_revision].to_i]
+    @page = PageAtRevision.find_by_path(@path)
+    #if (params[:first_revision].to_i<params[:second_revision].to_i)
+    #  first = params[:second_revision]
+    #  second = params[:first_revision]
+    #end
+
+    second = params[:second_revision]
+    first = params[:first_revision]
+
+    @page.revision_date = @page.page_parts_revisions[first.to_i].created_at
+    @first_revision = @page.get_page_parts_by_date(first)
+        old_revision = ""
+        for part in @first_revision
+          unless part.was_deleted
+            old_revision<< part.body << "\n"
+          end
+        end
+    @page = PageAtRevision.find_by_path(@path)
+    @page.revision_date = @page.page_parts_revisions[second.to_i].created_at
+    @second_revision = @page.get_page_parts_by_date(second)
+        new_revision = ""
+        for part in @second_revision
+          unless part.was_deleted
+            new_revision<< part.body << "\n"
+          end
+        end
+    compare(old_revision, new_revision)
+    @printer = @output.split(/\n/).map! { |e| e.chomp }
+    @printer.delete_at(0)
     render :action => 'diff'
   end
-  
+
+  def compare old,new
+    data_old = old.split(/\n/).map! { |e| e.chomp }
+    data_new = new.split(/\n/).map! { |e| e.chomp }
+        @output = ""
+        context_lines = 3
+        format = :unified
+	diffs = Diff::LCS.diff(data_old, data_new)
+    return @output if diffs.empty?
+	    oldhunk = hunk = nil
+	    file_length_difference = 0
+	diffs.each do |piece|
+	    begin
+	      hunk = Diff::LCS::Hunk.new(data_old, data_new, piece, context_lines, file_length_difference)
+	      file_length_difference = hunk.file_length_difference
+	      next unless oldhunk
+              if (context_lines > 0) and hunk.overlaps?(oldhunk)
+                 hunk.unshift(oldhunk)
+              else
+                output << oldhunk.diff(format)
+              end
+              ensure
+              oldhunk = hunk
+              end
+	end
+	@output << oldhunk.diff(format)  
+  end
+
   def show_revision
     @page = PageAtRevision.find_by_path(@path)
-    
-    revision_date = @page.page_parts_revisions[params[:revision].to_i].created_at
-    @page.revision_date = revision_date   
-    @page_parts = Array.new    
-    
-    for part in @page.page_parts
-      current_part = part.page_part_revisions.find(:first, :conditions => ['created_at <= ?', revision_date])
-      @page_parts << current_part if current_part
-    end
+    @page.revision_date = @page.page_parts_revisions[params[:revision].to_i].created_at
+    @page_parts = @page.get_page_parts_by_date(params[:revision])
     layout = @page.nil? ? 'application' : @page.resolve_layout
-
     render :action => 'show_revision', :layout => layout  
   end
 

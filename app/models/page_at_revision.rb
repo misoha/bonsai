@@ -8,4 +8,5 @@ class PageAtRevision < Page
     latest_part_revision = PagePartRevision.first(:joins => {:page_part => :page}, :conditions => [condition, self.lft, part_name, false, self.revision_date], :order => "pages.lft, created_at DESC")
     latest_part_revision.nil? ? nil : latest_part_revision.body
   end
-end
+
+ end
