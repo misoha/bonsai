@@ -58,6 +58,7 @@ class PageController < ApplicationController
       elsif params.include? 'revision' then show_revision and return
       elsif params.include? 'diff' then diff and return
       elsif params.include? 'files' then files and return
+      elsif params.include? 'pagesib' then pagesib and return
       else view and return
       end
     end
@@ -107,8 +108,8 @@ class PageController < ApplicationController
     @printer.delete_at(0)
     render :action => 'diff'
   end
-
-  def compare old,new
+     
+ def compare old,new
     data_old = old.split(/\n/).map! { |e| e.chomp }
     data_new = new.split(/\n/).map! { |e| e.chomp }
         @output = ""
@@ -134,7 +135,12 @@ class PageController < ApplicationController
 	end
 	@output << oldhunk.diff(format)  
   end
-
+   
+  def pagesib
+     @current = @page.get_page(params[:id].to_i).first
+      render :action =>'page_siblings'
+  end
+  
   def show_revision
     @page = PageAtRevision.find_by_path(@path)
     @page.revision_date = @page.page_parts_revisions[params[:revision].to_i].created_at
