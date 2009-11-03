@@ -103,53 +103,44 @@ class PageController < ApplicationController
              end
            end
        compare(old_revision, new_revision)
-       @printer = @output.split(/\n/).map! { |e| e.chomp }
        render :action => 'diff'
   end
      
  def compare old,new
-   @output = ""
+   @output = []
      data_old = old.split(/\n/).map! { |e| e.chomp }
      data_new = new.split(/\n/).map! { |e| e.chomp }
      diffs = Diff::LCS.sdiff(data_old, data_new)
      puts "*****************************************************************************************"
-     p diffs
+     #p diffs
 
     for diff in diffs
        data_old_parse = ""
        data_new_parse = ""
-        mark = ""
-        temp = ""
-      if(diff.action == '=')
-        @output << diff.old_element << "\n"
+       temp = []
+      if((diff.action == '=')||(diff.action == '-')||(diff.action == '+'))
+        begin
+          if(diff.action == '-')
+
+            @output << [diff.action, diff.old_element]
+          else
+            @output << [diff.action, diff.new_element]
+          end
+        end
       else begin
-           if(diff.old_element == nil)
-             @output << "+" << diff.new_element << "\n"
-           else if(diff.new_element == nil)
-             @output << "-" << diff.old_element << "\n"
-           else begin
               data_old_parse = diff.old_element.split(" ").map! { |e| e.chomp }
               data_new_parse = diff.new_element.split(" ").map! { |e| e.chomp }
               diffs_parsed = Diff::LCS.sdiff(data_old_parse, data_new_parse)
                  for parsed_diff in diffs_parsed
                    case parsed_diff.action
-                         when '=' then temp << parsed_diff.old_element << " "
-                         when '-' then mark << "-"; temp << "-" << parsed_diff.old_element << " "
-                         when '+' then mark << "+"; temp << "+" << parsed_diff.new_element << " "
+                         when '=' then temp << ['=', parsed_diff.old_element]
+                         when '-' then temp << ['-', parsed_diff.old_element]
+                         when '+' then temp << ['+', parsed_diff.new_element]
                    end
                  end
-                 if(mark.start_with?("-"))
-                  @output << "-"
-                 end
-                 if(mark.start_with?("+"))
-                  @output << "+"
-                  end
-               @output << temp << "\n"
+               @output << ['*',temp]
                end
-              end
-           end
         end
-      end
      p @output
     end
   end
