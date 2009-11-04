@@ -4,44 +4,37 @@
         <table>
           <tbody>
           <% for item in @output %>
-          <% puts "*****************************************************************************************" %>
-            <% p @output %>
-            <% puts item[0] %>
-             <% case item[0] %>
-                <% when '=' then begin %>
+                <% if (item[0] == '=')%>
                                 <tr>
-                                   <td style="text-align:left" bgcolor="F8F8FF"></td>
-                                   <td style="text-align:left" bgcolor="F8F8FF"><%= item[1] %></td>
+                                   <td class="line-unchanged"></td>
+                                   <td class="line-unchanged"><%= item[1] %></td>
                                 </tr>
-                                <% end %>
-               <% when '+' then begin %>
+                  <% end %>
+               <% if (item[0] == '+')%>
                                 <tr>
-                                   <td style="text-align:left" bgcolor="DDFFDD">+</td>
-                                   <td style="text-align:left" bgcolor="DDFFDD"><%= item[1] %></td>
+                                   <td class="line-added">+</td>
+                                   <td class="line-added"><%= item[1] %></td>
                                 </tr>
-                                <% end %>
-               <% when '-' then begin %>
+                  <% end %>
+               <% if (item[0] == '-')%>
                                 <tr>
-                                   <td style="text-align:left" bgcolor="FFDDDD">-</td>
-                                   <td style="text-align:left" bgcolor="FFDDDD"><%= item[1] %></td>
+                                   <td class="line-removed">-</td>
+                                   <td class="line-removed"><%= item[1] %></td>
                                 </tr>
-                                <% end %>
-                <% when '*' then begin %>
+                  <% end %>
+                <% if (item[0] == '*')%>
                                 <tr>
-                                   <td style="text-align:left" bgcolor="FFDDDD">*</td>
-                                   <td style="text-align:left" bgcolor="F8F8FF">
+                                   <td class="line-changed">*</td>
+                                   <td class="line-changed">
                                       <% for diff_item in item[1] %>
-                                            <% case diff_item[0] %>
-                                                <% when '=' then %><span style="background:#F8F8FF"><%= diff_item[1]%></span>
-                                                <% when '+' then %><span style="background:#DDFFDD"><%= diff_item[1]%></span>
-                                                <% when '-' then %><span style="background:#FFDDDD"><%= diff_item[1]%></span>
-                                            <% end %>
+                                                 <% if (diff_item[0] == '=')%><span class="line-changed-same"><%= diff_item[1]%></span><% end %>
+                                                <% if (diff_item[0] == '+')%><span class="line-changed-add"><%= diff_item[1]%></span><% end %>
+                                                 <% if (diff_item[0] == '-')%><span class="line-changed-del"><%= diff_item[1]%></span><% end %>
                                       <% end %>
                                    </td>
                                 </tr>
-                                <% end %>
+                <% end %>
              <% end %>
-          <% end %>
           </tbody>
         </table>
   </div>

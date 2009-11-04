@@ -83,15 +83,21 @@ Feature: Wiki
     And I should see "This is second summary"
 
   Scenario: User wants to see the diff of two page revisions
-    Given that a "main" page with multiple revisions exist
     When I go to the main page
-    And I login as "johno"
-    And I go to the main page
+    When I login as "johno"
+    And I fill in "title" with "Page title"
+    And I fill in "body" with "This is body"
+    And I fill in "summary" with "Some summary"
+    And I press "Create"
+    When I follow "edit"
+    And I fill in "new_page_part_name" with "Second part"
+    And I fill in "new_page_part_text" with "This is second part"
+    And I press "Add new page part"
     And I follow "history"
     And I choose "first_revision_1"
     And I choose "second_revision_2"
     And I press "compare selected versions"
-    Then I should see "This is second revision" within ".line-changed"
+    Then I should see "This is second part" within "line-added"
 
   Scenario: User wants to revert a revision
     Given that a "main" page with multiple revisions exist
