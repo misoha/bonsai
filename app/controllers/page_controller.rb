@@ -2,6 +2,7 @@ class PageController < ApplicationController
    require 'diff/lcs/hunk'
 
   def handle
+    session[:link_back] = nil
     @path = params[:path]
 
     # is it a file?
@@ -19,7 +20,7 @@ class PageController < ApplicationController
       end
       return
     end
-    
+
     # manager actions
     if @current_user.can_manage_page? @page
       if params.include? 'manage' then render :action => :manage and return
@@ -38,7 +39,13 @@ class PageController < ApplicationController
       elsif params.include? 'upload' then upload and return
       elsif params.include? 'undo' then undo and return
       elsif params.include? 'new-part' then new_part and return
+      elsif params.include? 'files' then files and return
       end
+    end
+
+    # for logged user
+    if @current_user.logged?
+      if params.include? 'groups' then groups and return end
     end
 
     # viewer actions
@@ -57,15 +64,19 @@ class PageController < ApplicationController
       if params.include? 'history' then render :action => :show_history and return
       elsif params.include? 'revision' then show_revision and return
       elsif params.include? 'diff' then diff and return
-      elsif params.include? 'files' then files and return
-      elsif params.include? 'pagesib' then pagesib and return
-      else view and return
+      else view #and return
       end
+    else
+      unprivileged
     end
-    unprivileged
   end
 
   def view
+    link = request.env['PATH_INFO']
+    unless link.ends_with?('/')
+      redirect_to link + '/'
+      return
+    end
     @hide_view_in_toolbar = true
     layout = @page.nil? ? 'application' : @page.resolve_layout
     render :action => :view, :layout => layout
@@ -318,77 +329,80 @@ class PageController < ApplicationController
   end
 
   def set_permissions
-    if params[:groups]
-      groups = params[:groups][:id]
-      groups.each do |group_id|
-        group = Group.find(group_id)
-        @page.add_viewer group if params[:can_view]
-        @page.add_editor group if params[:can_edit]
-        @page.add_manager group if params[:can_manage]
-      end
-    end
-    redirect_to @page.get_path + "?manage"
+   addedgroups =  params[:add_group].split(",")
+       for addedgroup in addedgroups
+         groups = Group.find_all_by_name(addedgroup)
+          for group in groups
+            @page.add_viewer group if params[:can_view]
+            @page.add_editor group if params[:can_edit]
+            @page.add_manager group if params[:can_manage]
+          end
+       end
+        redirect_to @page.get_path + "?manage"
   end
 
   def update
-    @page.title = params[:title]
-    if @current_user.can_manage_page? @page
-      @page.layout = params[:layout].empty? ? nil : params[:layout]
-    end
-    @page.save
-    params[:parts].each do |part_name, body|
-      page_part = PagePart.find_by_name_and_page_id(part_name, @page.id)
-      current_revision = page_part.current_page_part_revision
+     @page.title = params[:title]
+     if @current_user.can_manage_page? @page
+       @page.layout = params[:layout].empty? ? nil : params[:layout]
+     end
+     @page.save
+     params[:parts].each do |part_name, body|
+       page_part = PagePart.find_by_name_and_page_id(part_name, @page.id)
+       s = "page_part_name_" + part_name
+       current_revision = page_part.current_page_part_revision
+       params[s]
+       page_part
+        revision = nil
+       if(params[s] != part_name || page_part.current_page_part_revision.body != body ||
+             current_revision.was_deleted && (params[:is_deleted].blank? || params[:is_deleted][part_name].blank?) ||
+             !current_revision.was_deleted && !params[:is_deleted].blank? && !params[:is_deleted][part_name].blank?)
 
-      revision = nil
-      if(page_part.current_page_part_revision.body != body ||
-            current_revision.was_deleted && (params[:is_deleted].blank? || params[:is_deleted][part_name].blank?) ||
-            !current_revision.was_deleted && !params[:is_deleted].blank? && !params[:is_deleted][part_name].blank?)
+         revision = PagePartRevision.new(:user => @current_user, :page_part => page_part, :body => body, :summary => params[:summary])
+         if(!current_revision.was_deleted && (!params[:is_deleted].blank? && !params[:is_deleted][part_name].blank?))
+           revision.was_deleted = true
+         end
+         unless(revision.valid?)
+           error_message = ""
+           revision.errors.each_full { |msg| error_message << msg }
+           @page_part = page_part
+           @page_revision = revision
+           flash[:error] = error_message
+           render :action => "edit"
+           return true
+         end
+         revision.save!
+         page_part.current_page_part_revision = revision
+         page_part.name = params[s]
+         page_part.save!
+       end
+     end
+     flash[:notice] = 'Page successfully updated.'
+     redirect_to @page.get_path
+   end
 
-        revision = PagePartRevision.new(:user => @current_user, :page_part => page_part, :body => body, :summary => params[:summary])
-        if(!current_revision.was_deleted && (!params[:is_deleted].blank? && !params[:is_deleted][part_name].blank?))
-          revision.was_deleted = true
-        end
-        unless(revision.valid?)
-          error_message = ""
-          revision.errors.each_full { |msg| error_message << msg }
-          @page_part = page_part
-          @page_revision = revision
-          flash[:error] = error_message
-          render :action => "edit"
-          return true
-        end
-        revision.save!
-        page_part.current_page_part_revision = revision
-        page_part.save!
-      end
-    end
-    flash[:notice] = 'Page successfully updated.'
-    redirect_to @page.get_path
-  end
-
-  def new_part
-    page_part = PagePart.create(:name => params[:new_page_part_name], :page => @page, :current_page_part_revision_id => 0)
-    unless page_part.valid?
-      error_message = ""
-      page_part.errors.each_full { |msg| error_message << msg }
-      flash[:error] = error_message
-      render :action => "edit"
-      return true
-    end
-    page_part_revision = PagePartRevision.new(:user => @current_user, :page_part => page_part, :body => params[:new_page_part_text], :summary => "init")
-    page_part_revision.save
-    page_part.current_page_part_revision = page_part_revision
-    page_part.save!
-    flash[:notice] = 'Page part successfully added.'
-    redirect_to @page.get_path + "?edit"
-  end
+   def new_part
+    page_part = @page.page_parts.find_by_name(params[:new_page_part_name])
+    page_part = PagePart.create(:name => params[:new_page_part_name], :page => @page, :current_page_part_revision_id => 0) if page_part.nil?
+     unless page_part.valid?
+       error_message = ""
+       page_part.errors.each_full { |msg| error_message << msg }
+       flash[:error] = error_message
+       render :action => "edit"
+       return true
+     end
+     page_part_revision = PagePartRevision.new(:user => @current_user, :page_part => page_part, :body => params[:new_page_part_text], :summary => "init")
+     page_part_revision.save
+     page_part.current_page_part_revision = page_part_revision
+     page_part.save!
+     flash[:notice] = 'Page part successfully added.'
+     redirect_to @page.get_path + "?edit"
+   end
 
   def upload
     @uploaded_file = UploadedFile.new(params[:uploaded_file])
     sleep(2)
     @name = params[:uploaded_file_filename]
-    @page = Page.find_by_path(@path)
     if !@name.nil? && File.extname(@name) != File.extname(@uploaded_file.filename)
       flash[:notice] = 'Type of file not match. No file uploaded.'
       redirect_to @page.get_path
@@ -397,10 +411,6 @@ class PageController < ApplicationController
       @uploaded_file.user = @current_user
       @uploaded_file.rename(@name) unless @name.nil?
       if @uploaded_file.save
-        #if @name != @uploaded_file.filename && !@name.empty?
-        #  dir = 'shared/upload' + @page.get_path
-        #  File.rename(dir + @uploaded_file.filename, dir + @name)
-        #end
         flash[:notice] = 'File was successfully uploaded.'
         redirect_to @page.get_path
       else
@@ -415,4 +425,10 @@ class PageController < ApplicationController
   def files
     render :action => :files
   end
+
+  def groups
+    @page = Page.find_by_path(@path)
+    session[:link_back] = @page.get_path
+    redirect_to groups_path
+    end
 end

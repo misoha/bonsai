@@ -1,0 +1,26 @@
+development:
+  adapter: mysql
+  encoding: utf8
+  database: bonsai_development
+  pool: 5
+  username: bonsai
+  password: bonsai
+  host: localhost
+
+test: &TEST
+  adapter: mysql
+  encoding: utf8
+  database: bonsai_test
+  pool: 5
+  username: bonsai
+  password: bonsai
+  host: localhost
+  
+production:
+  adapter: mysql
+  encoding: utf8
+  database: bonsai_production
+  pool: 5
+  username: bonsai
+  password: bonsai
+  host: localhost
